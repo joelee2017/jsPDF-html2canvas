@@ -33,4 +33,7 @@ var imgHeight = (610.28 / contentWidth) * contentHeight;
 
 儲存檔案時，支援Callback function
 
+```javascript
 pdf.save("test.pdf", { returnPromise: true }).then(alert("PDF render all done!"));
+```
+
