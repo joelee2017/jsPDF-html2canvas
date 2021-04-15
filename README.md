@@ -7,7 +7,12 @@ method_2參考：https://www.uj5u.com/qiye/181610.html
 
 使用html2canvas產生圖片，並用 jsPDF 輸出PDF
 
+使用到CDN
 
+```html
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+```
 
 以下兩個地方，解決輸出後有灰底區塊及調整輸出長寬
 
