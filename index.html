@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta charset="UTF-8" />
+    <title>jsPDF-html2canvas_test</title>
+
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+  </head>
+
+  <body>
+    <div class="demo"></div>
+  </body>
+</html>
+<script type="text/javascript">
+  $(function () {});
+
+  function method_1() {
+    window.jsPDF = window.jspdf.jsPDF;
+    var element = $(".demo"); // 這個dom元素是要匯出pdf的div容器
+    var w = element.width(); // 獲得該容器的寬
+    var h = element.height(); // 獲得該容器的高
+    var offsetTop = element.offset().top; // 獲得該容器到文件頂部的距離
+    var offsetLeft = element.offset().left; // 獲得該容器到文件最左的距離
+    var canvas = document.createElement("canvas");
+    var abs = 0;
+    var win_i = $(window).width(); // 獲得當前可視視窗的寬度（不包含滾動條）
+    var win_o = window.innerWidth; // 獲得當前視窗的寬度（包含滾動條）
+    if (win_o > win_i) {
+      abs = (win_o - win_i) / 2; // 獲得滾動條長度的一半
+    }
+    canvas.width = w * 2; // 將畫布寬&&高放大兩倍
+    canvas.height = h * 2;
+    var context = canvas.getContext("2d");
+    context.scale(2, 2);
+    context.translate(-offsetLeft - abs, -offsetTop);
+    // 這裡預設橫向沒有滾動條的情況，因為offset.left(),有無滾動條的時候存在差值，因此
+    // translate的時候，要把這個差值去掉
+    html2canvas(element.get(0), {
+      //獲取元素寬高 讓其以一個規律或者固定寬高伸展
+      width: w + 120,
+      height: h + 250,
+      //將截圖移入中心位置
+      scrollX: 0,
+      scrollY: 100,
+      //加上白色背景
+      backgroundColor: "white",
+    }).then(function (canvas) {
+      var contentWidth = canvas.width;
+      var contentHeight = canvas.height;
+      //一頁pdf顯示html頁面生成的canvas高度;
+      var pageHeight = (contentWidth / 592.28) * 841.89;
+      //未生成pdf的html頁面高度
+      var leftHeight = contentHeight;
+      //頁面偏移
+      var position = 0;
+      //a4紙的尺寸[595.28,841.89]，html頁面生成的canvas在pdf中圖片的寬高
+      var imgWidth = 625.28;
+      var imgHeight = (610.28 / contentWidth) * contentHeight;
+
+      var pageData = canvas.toDataURL("image/jpeg", 1.0);
+
+      var pdf = new jsPDF("", "pt", "a4");
+
+      //有兩個高度需要區分，一個是html頁面的實際高度，和生成pdf的頁面高度(841.89)
+      //當內容未超過pdf一頁顯示的範圍，無需分頁
+      if (leftHeight < pageHeight) {
+        //pdf.addImage(pageData, 'JPEG', 0, 0, imgWidth, imgHeight);
+        pdf.addImage(pageData, "JPEG", 10, 0, imgWidth, imgHeight);
+      } else {
+        // 分頁
+        while (leftHeight > 0) {
+          /*pdf.addImage(pageData, 'JPEG', 0, position, imgWidth, imgHeight)*/
+          pdf.addImage(pageData, "JPEG", 10, position, imgWidth, imgHeight);
+          leftHeight -= pageHeight;
+          position -= 841.89;
+          //避免新增空白頁
+          if (leftHeight > 0) {
+            pdf.addPage();
+          }
+        }
+      }
+      pdf
+        .save("test.pdf", { returnPromise: true })
+        .then(alert("PDF render all done!"));
+    });
+  }
+
+  function method_2() {
+    window.jsPDF = window.jspdf.jsPDF;
+    var element = $(".demo"); // 這個dom元素是要匯出pdf的div容器
+    var w = element.width(); // 獲得該容器的寬
+    var h = element.height(); // 獲得該容器的高
+    html2canvas(element.get(0), {
+      logging: false,
+      //獲取元素寬高 讓其以一個規律或者固定寬高伸展
+      width: w + 80,
+      height: h + 250,
+      //將截圖移入中心位置
+      scrollX: 10,
+      scrollY: 150,
+      //加上白色背景
+      backgroundColor: "white",
+    }).then(function (canvas) {
+      var pdf = new jsPDF("p", "mm", "a4"); //A4紙，縱向
+      var ctx = canvas.getContext("2d"),
+        a4w = 190,
+        a4h = 277, //A4大小，210mm x 297mm，四邊各保留10mm的邊距，顯示區域190x277
+        imgHeight = Math.floor((a4h * canvas.width) / a4w), //按A4顯示比例換算一頁影像的像素高度
+        renderedHeight = 0;
+
+      while (renderedHeight < canvas.height) {
+        var page = document.createElement("canvas");
+        page.width = canvas.width;
+        page.height = Math.min(imgHeight, canvas.height - renderedHeight); //可能內容不足一頁
+
+        //用getImageData剪裁指定區域，并畫到前面創建的canvas物件中
+        page
+          .getContext("2d")
+          .putImageData(
+            ctx.getImageData(
+              0,
+              renderedHeight,
+              canvas.width,
+              Math.min(imgHeight, canvas.height - renderedHeight)
+            ),
+            0,
+            0
+          );
+        pdf.addImage(
+          page.toDataURL("image/jpeg", 1.0),
+          "JPEG",
+          10,
+          10,
+          a4w,
+          Math.min(a4h, (a4w * page.height) / page.width)
+        ); //添加影像到頁面，保留10mm邊距
+
+        renderedHeight += imgHeight;
+        if (renderedHeight < canvas.height) pdf.addPage(); //如果后面還有內容，添加一個空頁
+        delete page;
+      }
+      pdf
+        .save("test.pdf", { returnPromise: true })
+        .then(alert("PDF render all done!"));
+    });
+  }
+</script>
